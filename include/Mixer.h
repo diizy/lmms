@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _MIXER_H
-#define _MIXER_H
+#ifndef MIXER_H
+#define MIXER_H
 
 #include "lmmsconfig.h"
 
@@ -94,7 +94,7 @@ public:
 			Interpolation_SincFastest,
 			Interpolation_SincMedium,
 			Interpolation_SincBest
-		} ; 
+		} ;
 
 		enum Oversampling
 		{
@@ -324,7 +324,9 @@ public:
 	void bufferToPort( const sampleFrame * _buf,
 					const fpp_t _frames,
 					const f_cnt_t _offset,
-					stereoVolumeVector _volume_vector,
+					FloatModel * _volume_model,
+					FloatModel * _panning_model,
+					float _volume_scale,
 					AudioPort * _port );
 
 	static void clearAudioBuffer( sampleFrame * _ab,
@@ -348,7 +350,7 @@ public:
 	}
 
 	void pushInputFrames( sampleFrame * _ab, const f_cnt_t _frames );
-	
+
 	inline const sampleFrame * inputBuffer()
 	{
 		return m_inputBuffer[ m_inputBufferRead ];
@@ -420,10 +422,10 @@ private:
 	f_cnt_t m_inputBufferSize[2];
 	int m_inputBufferRead;
 	int m_inputBufferWrite;
-	
+
 	surroundSampleFrame * m_readBuf;
 	surroundSampleFrame * m_writeBuf;
-	
+
 	QVector<surroundSampleFrame *> m_bufferPool;
 	int m_readBuffer;
 	int m_writeBuffer;
@@ -434,7 +436,7 @@ private:
 	fpp_t m_halfStart[SURROUND_CHANNELS];
 	bool m_oldBuffer[SURROUND_CHANNELS];
 	bool m_newBuffer[SURROUND_CHANNELS];
-	
+
 	int m_cpuLoad;
 	QVector<MixerWorkerThread *> m_workers;
 	int m_numWorkers;

@@ -525,7 +525,7 @@ void Mixer::pushInputFrames( sampleFrame * _ab, const f_cnt_t _frames )
 	f_cnt_t frames = m_inputBufferFrames[ m_inputBufferWrite ];
 	int size = m_inputBufferSize[ m_inputBufferWrite ];
 	sampleFrame * buf = m_inputBuffer[ m_inputBufferWrite ];
-	
+
 	if( frames + _frames > size )
 	{
 		size = qMax( size * 2, frames + _frames );
@@ -538,10 +538,10 @@ void Mixer::pushInputFrames( sampleFrame * _ab, const f_cnt_t _frames )
 
 		buf = ab;
 	}
-	
+
 	memcpy( &buf[ frames ], _ab, _frames * sizeof( sampleFrame ) );
 	m_inputBufferFrames[ m_inputBufferWrite ] += _frames;
-	
+
 	unlockInputFrames();
 }
 
@@ -699,7 +699,9 @@ void Mixer::clear()
 void Mixer::bufferToPort( const sampleFrame * _buf,
 					const fpp_t _frames,
 					const f_cnt_t _offset,
-					stereoVolumeVector _vv,
+					FloatModel * _volume_model,
+					FloatModel * _panning_model,
+					float _volume_scale,
 						AudioPort * _port )
 {
 	const int start_frame = _offset % m_framesPerPeriod;
