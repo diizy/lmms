@@ -30,7 +30,7 @@
 MeterModel::MeterModel( ::Model * _parent ) :
 	Model( _parent ),
 	m_numeratorModel( 4, 1, 32, this, tr( "Numerator" ) ),
-	m_denominatorModel( 4, 1, 32, this, tr( "Denominator" ) )
+	m_denominatorModel( this, 4, tr( "Denominator" ) )
 {
 	connect( &m_numeratorModel, SIGNAL( dataChanged() ), 
 				this, SIGNAL( dataChanged() ) );

@@ -23,12 +23,13 @@
  *
  */
 
-#ifndef _METER_DIALOG_H
-#define _METER_DIALOG_H
+#ifndef METER_DIALOG_H
+#define METER_DIALOG_H
 
 #include <QtGui/QWidget>
 
 #include "ModelView.h"
+#include "DenominatorSpinBox.h"
 
 class LcdSpinBox;
 
@@ -44,7 +45,7 @@ public:
 
 private:
 	LcdSpinBox * m_numerator;
-	LcdSpinBox * m_denominator;
+	DenominatorSpinBox * m_denominator;
 
 } ;
 

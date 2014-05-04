@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef _METER_MODEL_H
-#define _METER_MODEL_H
+#ifndef METER_MODEL_H
+#define METER_MODEL_H
 
 #include "AutomatableModel.h"
-
+#include "DenominatorSpinBox.h"
 
 class MeterModel : public Model
 {
@@ -50,7 +50,7 @@ public:
 		return m_numeratorModel;
 	}
 
-	IntModel & denominatorModel()
+	DenominatorModel & denominatorModel()
 	{
 		return m_denominatorModel;
 	}
@@ -58,7 +58,7 @@ public:
 
 private:
 	IntModel m_numeratorModel;
-	IntModel m_denominatorModel;
+	DenominatorModel m_denominatorModel;
 
 } ;
 
