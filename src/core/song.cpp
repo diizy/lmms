@@ -242,6 +242,9 @@ void song::processNextBuffer()
 	{
 		return;
 	}
+	
+	// save playposition at period start
+	m_periodStartPos = m_playPos[m_playMode];
 
 	// check for looping-mode and act if necessary
 	timeLine * tl = m_playPos[m_playMode].m_timeLine;
@@ -255,6 +258,7 @@ void song::processNextBuffer()
 			m_elapsedMilliSeconds = (tl->loopBegin().getTicks()*60*1000/48)/getTempo();
 			m_playPos[m_playMode].setTicks(
 						tl->loopBegin().getTicks() );
+			emit playbackPositionChanged();
 		}
 	}
 
@@ -308,6 +312,7 @@ void song::processNextBuffer()
 					// then start from beginning and keep
 					// offset
 					ticks = ticks % ( max_tact * MidiTime::ticksPerTact() );
+					emit playbackPositionChanged();
 
 					// wrap milli second counter
 					m_elapsedMilliSeconds = ( ticks * 60 * 1000 / 48 ) / getTempo();

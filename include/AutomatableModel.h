@@ -27,6 +27,7 @@
 
 #include <math.h>
 
+
 #include "JournallingObject.h"
 #include "Model.h"
 #include "MidiTime.h"
@@ -61,6 +62,8 @@
 
 
 class ControllerConnection;
+class AutomationPattern;
+
 
 class EXPORT AutomatableModel : public Model, public JournallingObject
 {
@@ -104,7 +107,7 @@ public:
 		return isAutomated() || m_controllerConnection != NULL;
 	}
 	
-	bool hasSampleExactData() const;
+	bool hasSampleExactData();
 
 
 	ControllerConnection* controllerConnection() const
@@ -255,6 +258,7 @@ public:
 	}
 
 	float globalAutomationValueAt( const MidiTime& time );
+	AutomationPattern * automationPatternAt( const MidiTime& time );
 	
 	bool hasStrictStepSize() const
 	{
@@ -265,6 +269,12 @@ public:
 	{
 		m_hasStrictStepSize = b;
 	}
+	
+	void setAutomationSource( AutomationPattern * ap )
+	{
+		m_automationSource = ap;
+	}
+	
 
 public slots:
 	virtual void reset();
@@ -333,6 +343,7 @@ private:
 	static float s_copiedValue;
 
 	ValueBuffer m_valueBuffer;
+	AutomationPattern * m_automationSource;
 
 signals:
 	void initValueChanged( float val );

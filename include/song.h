@@ -256,6 +256,10 @@ public:
 		return m_timeSigModel;
 	}
 
+	playPos & periodStartPos() 
+	{
+		return m_periodStartPos;
+	}
 
 public slots:
 	void playSong();
@@ -363,6 +367,9 @@ private:
 
 	VstSyncController m_vstSyncController;
 
+	// song position at the start of current period
+	// used by automations
+	playPos m_periodStartPos;
 
 	friend class engine;
 	friend class SongEditor;

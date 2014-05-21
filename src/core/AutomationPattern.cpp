@@ -290,6 +290,74 @@ void AutomationPattern::applyDragValue()
 }
 
 
+/**
+ * @brief function for getting interpolated valuebuffers with a miditime + offset.
+ * Assumes that the tempo at time is the same as current tempo, so this should be used
+ * for current playback time only 
+ */
+ValueBuffer * AutomationPattern::valuesAt( const MidiTime & time, f_cnt_t offset ) const
+{
+	ValueBuffer * vb = new ValueBuffer( (int) engine::mixer()->framesPerPeriod() );
+	if( m_timeMap.isEmpty() )
+	{
+		vb->fill( 0 );
+		return vb;
+	}
+	
+	float offset1 = static_cast<float>( offset ) / engine::framesPerTick();
+	float offset2 = static_cast<float>( offset + engine::mixer()->framesPerPeriod() ) / engine::framesPerTick();
+
+	qDebug( "offsets %f, %f", offset1, offset2 );
+
+	timeMap::ConstIterator v1 = m_timeMap.lowerBound( time + static_cast<int>( offset1 ) );
+	timeMap::ConstIterator v2 = m_timeMap.lowerBound( time + static_cast<int>( offset2 ) );
+	
+	float value1;
+	float value2;
+	
+	// get start value
+	if( v1 == m_timeMap.begin() )
+	{
+		value1 = 0.0f;
+	}
+	else
+	if( v1 == m_timeMap.end() )
+	{
+		value1 = (v1-1).value();
+	}
+	else
+	{
+		value1 = valueAt( v1-1, static_cast<float>( time - (v1-1).key() ) + offset1 );
+	}
+	
+	// get end value
+	if( v2 == m_timeMap.begin() )
+	{
+		value2 = 0.0f;
+	}
+	else
+	if( v2 == m_timeMap.end() )
+	{
+		value2 = (v2-1).value();
+	}
+	else
+	{
+		value2 = valueAt( v2-1, static_cast<float>( time - (v2-1).key() ) + offset2 );
+	}
+	
+	if( value1 == value2 )
+	{
+		vb->fill( value1 );
+	}
+	else
+	{
+		vb->interpolate( value1, value2 );
+	}
+
+	qDebug( "values %f, %f", value1, value2 );
+
+	return vb;
+}
 
 
 float AutomationPattern::valueAt( const MidiTime & _time ) const
@@ -317,13 +385,13 @@ float AutomationPattern::valueAt( const MidiTime & _time ) const
 		return (v-1).value();
 	}
 
-	return valueAt( v-1, _time - (v-1).key() );
+	return valueAt( v-1, static_cast<float>( _time - (v-1).key() ) );
 }
 
 
 
 
-float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
+float AutomationPattern::valueAt( timeMap::const_iterator v, float offset ) const
 {
 	if( m_progressionType == DiscreteProgression || v == m_timeMap.end() )
 	{
@@ -331,9 +399,7 @@ float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
 	}
 	else if( m_progressionType == LinearProgression )
 	{
-		float slope = ((v+1).value() - v.value()) /
-							((v+1).key() - v.key());
-		return v.value() + offset * slope;
+		return linearInterpolate( v.value(), (v+1).value(), offset / ( (v+1).key() - v.key() ) );
 	}
 	else /* CubicHermiteProgression */
 	{
@@ -345,10 +411,10 @@ float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
 		// value: y.  To make this work we map the values of x that this
 		// segment spans to values of t for t = 0.0 -> 1.0 and scale the
 		// tangents _m1 and _m2
-		int numValues = ((v+1).key() - v.key());
-		float t = (float) offset / (float) numValues;
-		float m1 = (m_tangents[v.key()]) * numValues * m_tension;
-		float m2 = (m_tangents[(v+1).key()]) * numValues * m_tension;
+		float numValues = static_cast<float>( (v+1).key() - v.key() );
+		float t = offset / numValues;
+		float m1 = ( m_tangents[ v.key() ] ) * numValues * m_tension;
+		float m2 = ( m_tangents[ (v+1).key() ] ) * numValues * m_tension;
 
 		return ( 2*pow(t,3) - 3*pow(t,2) + 1 ) * v.value()
 				+ ( pow(t,3) - 2*pow(t,2) + t) * m1
@@ -360,7 +426,7 @@ float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
 
 
 
-float *AutomationPattern::valuesAfter( const MidiTime & _time ) const
+float * AutomationPattern::valuesAfter( const MidiTime & _time ) const
 {
 	timeMap::ConstIterator v = m_timeMap.lowerBound( _time );
 	if( v == m_timeMap.end() || (v+1) == m_timeMap.end() )
@@ -373,7 +439,7 @@ float *AutomationPattern::valuesAfter( const MidiTime & _time ) const
 
 	for( int i = 0; i < numValues; i++ )
 	{
-		ret[i] = valueAt( v, i );
+		ret[i] = valueAt( v, static_cast<float>( i ) );
 	}
 
 	return ret;
@@ -484,6 +550,7 @@ void AutomationPattern::processMidiTime( const MidiTime & time )
 				if( *it )
 				{
 					( *it )->setAutomatedValue( val );
+					( *it )->setAutomationSource( this );
 				}
 
 			}	
@@ -551,17 +618,32 @@ bool AutomationPattern::isAutomated( const AutomatableModel * _m )
 }
 
 
-/*! \brief returns a list of all the automation patterns everywhere that are connected to a specific model
+/*! \brief returns a list of all the automation patterns everywhere except bb tracks that are connected to a specific model
  *  \param _m the model we want to look for
  */
-QVector<AutomationPattern *> AutomationPattern::patternsForModel( const AutomatableModel * _m )
+QVector<AutomationPattern *> AutomationPattern::patternsForModel( const AutomatableModel * m )
 {
-	QVector<AutomationPattern *> patterns;
 	TrackContainer::TrackList l;
 	l += engine::getSong()->tracks();
-	l += engine::getBBTrackContainer()->tracks();
 	l += engine::getSong()->globalAutomationTrack();
-	
+	return patternsForModel( m, l );
+}
+
+
+/*! \brief returns a list of all the automation patterns in bb tracks that are connected to a specific model
+ *  \param _m the model we want to look for
+ */
+QVector<AutomationPattern *> AutomationPattern::patternsInBBForModel( const AutomatableModel * m )
+{
+	TrackContainer::TrackList l;
+	l += engine::getBBTrackContainer()->tracks();
+	return patternsForModel( m, l );
+}
+
+
+QVector<AutomationPattern *> AutomationPattern::patternsForModel( const AutomatableModel * m, TrackContainer::TrackList & l )
+{	
+	QVector<AutomationPattern *> patterns;
 	// go through all tracks...
 	for( TrackContainer::TrackList::ConstIterator it = l.begin(); it != l.end(); ++it )
 	{
@@ -583,7 +665,7 @@ QVector<AutomationPattern *> AutomationPattern::patternsForModel( const Automata
 					bool has_object = false;
 					for( objectVector::const_iterator k = a->m_objects.begin(); k != a->m_objects.end(); ++k )
 					{
-						if( *k == _m )
+						if( *k == m )
 						{
 							has_object = true;
 						}
@@ -600,7 +682,7 @@ QVector<AutomationPattern *> AutomationPattern::patternsForModel( const Automata
 
 
 AutomationPattern * AutomationPattern::globalAutomationPattern(
-							AutomatableModel * _m )
+							AutomatableModel * m )
 {
 	AutomationTrack * t = engine::getSong()->globalAutomationTrack();
 	track::tcoVector v = t->getTCOs();
@@ -612,7 +694,7 @@ AutomationPattern * AutomationPattern::globalAutomationPattern(
 			for( objectVector::const_iterator k = a->m_objects.begin();
 												k != a->m_objects.end(); ++k )
 			{
-				if( *k == _m )
+				if( *k == m )
 				{
 					return a;
 				}
@@ -621,7 +703,7 @@ AutomationPattern * AutomationPattern::globalAutomationPattern(
 	}
 
 	AutomationPattern * a = new AutomationPattern( t );
-	a->addObject( _m, false );
+	a->addObject( m, false );
 	return a;
 }
 

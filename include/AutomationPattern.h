@@ -31,6 +31,10 @@
 #include <QtCore/QPointer>
 
 #include "track.h"
+#include "interpolation.h"
+#include "ValueBuffer.h"
+#include "AutomatableModel.h"
+#include "TrackContainer.h"
 
 
 class AutomationTrack;
@@ -127,6 +131,7 @@ public:
 		return m_timeMap.isEmpty() == false;
 	}
 
+	ValueBuffer * valuesAt( const MidiTime & time, f_cnt_t offset ) const;
 	float valueAt( const MidiTime & _time ) const;
 	float *valuesAfter( const MidiTime & _time ) const;
 
@@ -152,8 +157,10 @@ public:
 
 
 	static bool isAutomated( const AutomatableModel * _m );
-	static QVector<AutomationPattern *> patternsForModel( const AutomatableModel * _m );
-	static AutomationPattern * globalAutomationPattern( AutomatableModel * _m );
+	static QVector<AutomationPattern *> patternsForModel( const AutomatableModel * m );
+	static QVector<AutomationPattern *> patternsInBBForModel( const AutomatableModel * m );
+	static QVector<AutomationPattern *> patternsForModel( const AutomatableModel * m, TrackContainer::TrackList & l );
+	static AutomationPattern * globalAutomationPattern( AutomatableModel * m );
 	static void resolveAllIDs();
 
 	bool isRecording() const
@@ -175,7 +182,7 @@ private:
 	void cleanObjects();
 	void generateTangents();
 	void generateTangents( timeMap::const_iterator it, int numToGenerate );
-	float valueAt( timeMap::const_iterator v, int offset ) const;
+	float valueAt( timeMap::const_iterator v, float offset ) const;
 
 	AutomationTrack * m_autoTrack;
 	QVector<jo_id_t> m_idsToResolve;

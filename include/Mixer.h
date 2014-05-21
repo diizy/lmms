@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _MIXER_H
-#define _MIXER_H
+#ifndef MIXER_H
+#define MIXER_H
 
 #include "lmmsconfig.h"
 

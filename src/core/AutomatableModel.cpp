@@ -25,8 +25,10 @@
 #include <QtXml/QDomElement>
 
 #include "AutomatableModel.h"
-#include "AutomationPattern.h"
 #include "ControllerConnection.h"
+#include "song.h"
+#include "engine.h"
+#include "AutomationPattern.h"
 
 
 float AutomatableModel::s_copiedValue = 0;
@@ -86,7 +88,7 @@ bool AutomatableModel::isAutomated() const
 	return AutomationPattern::isAutomated( this );
 }
 
-bool AutomatableModel::hasSampleExactData() const
+bool AutomatableModel::hasSampleExactData() 
 {
 	// if a controller is connected...
 	if( m_controllerConnection != NULL ) 
@@ -109,8 +111,9 @@ bool AutomatableModel::hasSampleExactData() const
 			}
 		}
 	}
-	// if we have values we can interpolate return true
-	if( m_oldValue != m_value )
+	// if we have an automation happening currently, return true
+	if( ( engine::getSong()->isPlaying() || engine::getSong()->isExporting() )
+		&& automationPatternAt( engine::getSong()->periodStartPos() ) )
 	{
 		return true;
 	}
@@ -592,11 +595,42 @@ ValueBuffer * AutomatableModel::valueBuffer()
 		return &m_valueBuffer;
 	}
 	
-	if( m_oldValue != m_value )
+	// if we have automation happening currently, use that
+	if( engine::getSong()->isPlaying() || engine::getSong()->isExporting() )
 	{
-		m_valueBuffer.interpolate( m_oldValue, m_value );
-		m_oldValue = m_value;
-		return &m_valueBuffer;
+		AutomationPattern * ap = automationPatternAt( engine::getSong()->periodStartPos() );
+		if( ap )
+		{
+			vb = ap->valuesAt( engine::getSong()->periodStartPos() - ap->startPosition(), 
+				engine::getSong()->periodStartPos().currentFrame() );
+			if( vb )
+			{
+				float * values = vb->values();
+				float * nvalues = m_valueBuffer.values();
+				switch( m_scaleType )
+				{
+				case Linear:
+					for( int i = 0; i < m_valueBuffer.length(); i++ )
+					{
+						nvalues[i] = fittedValue( values[i], false );
+					}
+					break;
+				case Logarithmic:
+					for( int i = 0; i < m_valueBuffer.length(); i++ )
+					{
+						nvalues[i] = fittedValue( logToLinearScale(
+							( values[i] - minValue<float>() ) / maxValue<float>() ), false );
+					}
+					break;
+				default:
+					qFatal("AutomatableModel::valueBuffer() "
+						"lacks implementation for a scale type");
+					break;
+				}
+				vb->clear(); //precaution to prevent memory leak
+				return &m_valueBuffer;
+			}
+		}
 	}
 	
 	// if we have no sample-exact source for a ValueBuffer, create one and fill it with current value
@@ -702,7 +736,7 @@ float AutomatableModel::globalAutomationValueAt( const MidiTime& time )
 		if( latestPattern )
 		{
 			// scale/fit the value appropriately and return it
-			const float value = latestPattern->valueAt( time );
+			const float value = latestPattern->valueAt( time - latestPattern->startPosition() );
 			const float scaledValue =
 				( m_scaleType == Linear )
 				? value
@@ -716,6 +750,39 @@ float AutomatableModel::globalAutomationValueAt( const MidiTime& time )
 		// just return current value as the best we can do
 		else return m_value;
 	}
+}
+
+
+AutomationPattern * AutomatableModel::automationPatternAt( const MidiTime& time )
+{
+	// get patterns that connect to this model
+	QVector<AutomationPattern *> patterns; 
+	if( engine::getSong()->playMode() == song::Mode_PlayBB )
+	{
+		patterns = AutomationPattern::patternsInBBForModel( this );
+	}
+	else
+	{
+		patterns = AutomationPattern::patternsForModel( this );
+	}
+	if( patterns.isEmpty() )
+	{
+		// if no such patterns exist, return null
+		return NULL;
+	}
+	else
+	{
+		// of those patterns:
+		// find the first patterns which overlaps with the miditime position
+		QVector<AutomationPattern *> patternsInRange;
+		for( QVector<AutomationPattern *>::ConstIterator it = patterns.begin(); it != patterns.end(); it++ )
+		{
+			int s = ( *it )->startPosition();
+			int e = ( *it )->endPosition();
+			if( s <= time && e >= time ) { return ( *it ); } 
+		}
+	}
+	return NULL;
 }
 
 
