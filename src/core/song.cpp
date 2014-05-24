@@ -372,7 +372,7 @@ void song::processNextBuffer()
 						total_frames_played, tco_num );
 			}
 			
-			// qDebug( "counted %d, calculated %d", elapsedFrames(), elapsedFramesAt( m_playPos[m_playMode] ) );
+			qDebug( "counted %d, calculated %d", elapsedFrames(), elapsedFramesAt( m_playPos[m_playMode] ) );
 
 			// loop through all tracks and play them
 			for( int i = 0; i < track_list.size(); ++i )

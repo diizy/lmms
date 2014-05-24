@@ -144,6 +144,7 @@ public:
 public slots:
 	void updateSample();
 	void changeName();
+	virtual void update();
 
 
 protected:
@@ -157,6 +158,9 @@ protected:
 
 private:
 	SampleTCO * m_tco;
+	
+	QPixmap m_paintPixmap;
+	bool m_needsUpdate;
 	
 	static QPixmap * s_pat_rec;
 } ;

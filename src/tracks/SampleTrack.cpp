@@ -294,7 +294,8 @@ QPixmap * SampleTCOView::s_pat_rec = NULL;
 
 SampleTCOView::SampleTCOView( SampleTCO * _tco, trackView * _tv ) :
 	trackContentObjectView( _tco, _tv ),
-	m_tco( _tco )
+	m_tco( _tco ),
+	m_needsUpdate( true )
 {
 	// update UI and tooltip
 	updateSample();
@@ -302,6 +303,8 @@ SampleTCOView::SampleTCOView( SampleTCO * _tco, trackView * _tv ) :
 	// track future changes of SampleTCO
 	connect( m_tco, SIGNAL( sampleChanged() ),
 			this, SLOT( updateSample() ) );
+	connect( m_tco, SIGNAL( positionChanged() ),
+			this, SLOT( update( ) ) );
 
 	setStyle( QApplication::style() );
 	
@@ -330,6 +333,11 @@ void SampleTCOView::updateSample()
 }
 
 
+void SampleTCOView::update()
+{
+	m_needsUpdate = true;
+	trackContentObjectView::update();
+}
 
 
 void SampleTCOView::contextMenuEvent( QContextMenuEvent * _cme )
@@ -449,8 +457,23 @@ void SampleTCOView::mouseDoubleClickEvent( QMouseEvent * )
 
 void SampleTCOView::paintEvent( QPaintEvent * _pe )
 {
-	QPainter p( this );
-	const QColor styleColor = p.pen().brush().color();
+	if( m_needsUpdate == false )
+	{
+		QPainter p( this );
+		p.drawPixmap( 0, 0, m_paintPixmap );
+		return;
+	}
+
+	QPainter pp( this );
+	const QColor styleColor = pp.pen().brush().color();
+	m_needsUpdate = false;
+
+	if( m_paintPixmap.isNull() == true || m_paintPixmap.size() != size() )
+	{
+		m_paintPixmap = QPixmap( size() );
+	}
+	
+	QPainter p( &m_paintPixmap );
 
 	QColor c;
 	if( !( m_tco->getTrack()->isMuted() || m_tco->isMuted() ) )
@@ -551,7 +574,9 @@ void SampleTCOView::paintEvent( QPaintEvent * _pe )
 		p.drawPixmap( 4, 14, *s_pat_rec );
 	}
 	
-	
+	p.end();
+
+	pp.drawPixmap( 0, 0, m_paintPixmap );	
 }
 
 

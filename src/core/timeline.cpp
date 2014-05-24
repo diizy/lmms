@@ -342,6 +342,7 @@ void timeLine::mouseMoveEvent( QMouseEvent* event )
 			if( ! engine::getSong()->isPlaying() )
 			{
 				m_pos.updatePosition();
+				engine::getSong()->updateElapsedFrames();
 			}
 			updatePosition();
 			break;

@@ -126,6 +126,7 @@ void SamplePlayHandle::play( sampleFrame * _working_buffer )
 	}
 
 	m_frame += frames;
+
 }
 
 

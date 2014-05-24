@@ -34,7 +34,6 @@ class SampleTCO;
 class track;
 class AudioPort;
 
-
 class SamplePlayHandle : public PlayHandle
 {
 public:
@@ -79,7 +78,6 @@ public:
 	{
 		m_volumeModel = _model;
 	}
-
 
 private:
 	SampleBuffer * m_sampleBuffer;
