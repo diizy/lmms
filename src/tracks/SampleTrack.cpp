@@ -304,7 +304,7 @@ SampleTCOView::SampleTCOView( SampleTCO * _tco, trackView * _tv ) :
 	connect( m_tco, SIGNAL( sampleChanged() ),
 			this, SLOT( updateSample() ) );
 	connect( m_tco, SIGNAL( positionChanged() ),
-			this, SLOT( update( ) ) );
+			this, SLOT( updateSample( ) ) );
 
 	setStyle( QApplication::style() );
 	
@@ -324,6 +324,7 @@ SampleTCOView::~SampleTCOView()
 
 void SampleTCOView::updateSample()
 {
+	m_needsUpdate = true;
 	update();
 	// set tooltip to filename so that user can see what sample this
 	// sample-tco contains
@@ -335,7 +336,6 @@ void SampleTCOView::updateSample()
 
 void SampleTCOView::update()
 {
-	m_needsUpdate = true;
 	trackContentObjectView::update();
 }
 
