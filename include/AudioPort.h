@@ -127,12 +127,28 @@ public:
 
 	inline void setVolumeBuffer( ValueBuffer * vb )
 	{
-		m_volumeBuffer = vb;
+		if( m_volumeBuffer == NULL )
+		{
+			m_volumeBuffer = vb;
+		}
 	}
 
 	inline void setPanningBuffer( ValueBuffer * vb )
 	{
-		m_panningBuffer = vb;
+		if( m_panningBuffer == NULL )
+		{
+			m_panningBuffer = vb;
+		}
+	}
+	
+	inline bool hasVolumeBuffer() const
+	{
+		return m_volumeBuffer != NULL;
+	}
+	
+	inline bool hasPanningBuffer() const
+	{
+		return m_panningBuffer != NULL;
 	}
 
 	void applyValueBuffers();

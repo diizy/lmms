@@ -314,9 +314,7 @@ public:
 					const fpp_t _frames,
 					const f_cnt_t _offset,
 					stereoVolumeVector _volume_vector,
-					AudioPort * _port,
-					ValueBuffer * volumeBuf = NULL,
-					ValueBuffer * panningBuf = NULL  );
+					AudioPort * _port );
 
 	static void clearAudioBuffer( sampleFrame * _ab,
 						const f_cnt_t _frames,

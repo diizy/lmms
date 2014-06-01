@@ -178,50 +178,72 @@ void InstrumentTrack::processAudioBuffer( sampleFrame* buf, const fpp_t frames, 
 		m_silentBuffersProcessed = false;
 	}
 
-	// if effects "went to sleep" because there was no input, wake them up
-	// now
-	m_audioPort.effects()->startRunning();
-
-	ValueBuffer * volumeBuffer = m_volumeModel.hasSampleExactData()
-		? m_volumeModel.valueBuffer()
-		: NULL;
-	
-	float v_scale = volumeBuffer
-		? 1.0f 
-		: (float) getVolume() / DefaultVolume;
-	
 	// instruments using instrument-play-handles will call this method
 	// without any knowledge about notes, so they pass NULL for n, which
 	// is no problem for us since we just bypass the envelopes+LFOs
 	if( m_instrument->flags().testFlag( Instrument::IsSingleStreamed ) == false && n != NULL )
 	{
 		m_soundShaping.processAudioBuffer( buf, frames, n );
-		v_scale *= ( (float) n->getVolume() / DefaultVolume );
 	}
 
+	// ensure correct fx channel
 	m_audioPort.setNextFxChannel( m_effectChannelModel.value() );
 	
 	int framesToMix = frames;
 	int offset = 0;
+
+	// if effects "went to sleep" because there was no input, wake them up
+	// now
+	m_audioPort.effects()->startRunning();
+
+	float v_scale = 1.0f;
+	ValueBuffer * volumeBuffer = NULL;
+	if( ! m_audioPort.hasVolumeBuffer() )
+	{
+		volumeBuffer = m_volumeModel.hasSampleExactData() 
+			? m_volumeModel.valueBuffer()
+			: NULL;
+		
+		v_scale = volumeBuffer
+			? 1.0f 
+			: (float) getVolume() / DefaultVolume;
+	}
 	
-	ValueBuffer * panningBuffer = m_panningModel.hasSampleExactData()
-		? m_panningModel.valueBuffer()
-		: NULL;
-		
-	int panning = panningBuffer
-		? 0 
-		: m_panningModel.value();
-		
+	int panning = 0;
+	ValueBuffer * panningBuffer = NULL;
+	if( ! m_audioPort.hasPanningBuffer() )
+	{
+		panningBuffer = m_panningModel.hasSampleExactData() 
+			? m_panningModel.valueBuffer()
+			: NULL;
+			
+		panning = panningBuffer
+			? 0 
+			: m_panningModel.value();
+	}
+	
 	if( n )
 	{
 		framesToMix = qMin<f_cnt_t>( n->framesLeftForCurrentPeriod(), framesToMix );
 		offset = n->offset();
 
+		v_scale *= ( (float) n->getVolume() / DefaultVolume );
+
 		panning += n->getPanning();
 		panning = tLimit<int>( panning, PanningLeft, PanningRight );
 	}
 
-	engine::mixer()->bufferToPort( buf, framesToMix, offset, panningToVolumeVector( panning, v_scale ), &m_audioPort, volumeBuffer, panningBuffer );
+	// pass on valuebuffers if we have them
+	if( volumeBuffer )
+	{
+		m_audioPort.setVolumeBuffer( volumeBuffer );
+	}
+	if( panningBuffer )
+	{
+		m_audioPort.setPanningBuffer( panningBuffer );
+	}
+
+	engine::mixer()->bufferToPort( buf, framesToMix, offset, panningToVolumeVector( panning, v_scale ), &m_audioPort );
 	
 }
 

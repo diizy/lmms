@@ -455,9 +455,7 @@ void Mixer::bufferToPort( const sampleFrame * _buf,
 					const fpp_t _frames,
 					const f_cnt_t _offset,
 					stereoVolumeVector _vv,
-						AudioPort * _port,
-						ValueBuffer * volumeBuf,
-						ValueBuffer * panningBuf )
+						AudioPort * _port )
 {
 	const int start_frame = _offset % m_framesPerPeriod;
 	int end_frame = start_frame + _frames;
@@ -468,17 +466,7 @@ void Mixer::bufferToPort( const sampleFrame * _buf,
 										_buf,							// src
 										_vv.vol[0], _vv.vol[1],			// coeff left/right
 										loop1_frame - start_frame );	// frame count
-
-	// pass on valuebuffers if we have them
-	if( volumeBuf )
-	{
-		_port->setVolumeBuffer( volumeBuf );
-	}
-	if( panningBuf )
-	{
-		_port->setPanningBuffer( panningBuf );
-	}
-										
+							
 	_port->unlockFirstBuffer();
 
 	_port->lockSecondBuffer();
