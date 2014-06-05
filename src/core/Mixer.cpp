@@ -348,12 +348,24 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 	ConstPlayHandleList::Iterator it_rem = m_playHandlesToRemove.begin();
 	while( it_rem != m_playHandlesToRemove.end() )
 	{
+		bool found = false;
 		PlayHandleList::Iterator it = qFind( m_playHandles.begin(), m_playHandles.end(), *it_rem );
 
 		if( it != m_playHandles.end() )
 		{
 			delete *it;
 			m_playHandles.erase( it );
+			found = true;
+		}
+
+		if( ! found ) // check iph list next
+		{
+			it = qFind( m_instrumentPlayHandles.begin(), m_instrumentPlayHandles.end(), *it_rem );
+			if( it != m_instrumentPlayHandles.end() )
+			{
+				delete *it;
+				m_instrumentPlayHandles.erase( it );
+			}
 		}
 
 		it_rem = m_playHandlesToRemove.erase( it_rem );
@@ -375,12 +387,15 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 	// create play-handles for new notes, samples etc.
 	engine::getSong()->processNextBuffer();
 
-
-	// STAGE 1: run and render all play handles
+	// STAGE 1: run and render all play handles 
+	// - ensuring that instrumentPlayHandles are processed last, because their nph's must be processed first
 	MixerWorkerThread::fillJobQueue<PlayHandleList>( m_playHandles );
 	MixerWorkerThread::startAndWaitForJobs();
-
-	// removed all play handles which are done
+	MixerWorkerThread::fillJobQueue<PlayHandleList>( m_instrumentPlayHandles );
+	MixerWorkerThread::startAndWaitForJobs();
+	
+	// removed all play handles which are done 
+	// - we don't have to go through iph's as they only get removed when instrument track is removed
 	for( PlayHandleList::Iterator it = m_playHandles.begin();
 						it != m_playHandles.end(); )
 	{
@@ -438,12 +453,7 @@ void Mixer::clear()
 	lock();
 	for( PlayHandleList::Iterator it = m_playHandles.begin(); it != m_playHandles.end(); ++it )
 	{
-		// we must not delete instrument-play-handles as they exist
-		// during the whole lifetime of an instrument
-		if( ( *it )->type() != PlayHandle::TypeInstrumentPlayHandle )
-		{
-			m_playHandlesToRemove.push_back( *it );
-		}
+		m_playHandlesToRemove.push_back( *it );
 	}
 	unlock();
 }
@@ -667,6 +677,7 @@ void Mixer::removePlayHandle( PlayHandle * _ph )
 	if( _ph->affinityMatters() &&
 				_ph->affinity() == QThread::currentThread() )
 	{
+		bool found = false;
 		PlayHandleList::Iterator it =
 				qFind( m_playHandles.begin(),
 						m_playHandles.end(), _ph );
@@ -674,6 +685,16 @@ void Mixer::removePlayHandle( PlayHandle * _ph )
 		{
 			m_playHandles.erase( it );
 			delete _ph;
+			found = true;
+		}
+		if( ! found ) // find iph if not found in regular list
+		{
+			it = qFind( m_instrumentPlayHandles.begin(), m_instrumentPlayHandles.end(), _ph );
+			if( it != m_instrumentPlayHandles.end() )
+			{
+				m_instrumentPlayHandles.erase( it );
+				delete _ph;
+			}
 		}
 	}
 	else
@@ -696,6 +717,19 @@ void Mixer::removePlayHandles( track * _track )
 		{
 			delete *it;
 			it = m_playHandles.erase( it );
+		}
+		else
+		{
+			++it;
+		}
+	}
+	it = m_instrumentPlayHandles.begin();
+	while( it != m_instrumentPlayHandles.end() )
+	{
+		if( ( *it )->isFromTrack( _track ) )
+		{
+			delete *it;
+			it = m_instrumentPlayHandles.erase( it );
 		}
 		else
 		{

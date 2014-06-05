@@ -209,6 +209,14 @@ public:
 	// play-handle stuff
 	bool addPlayHandle( PlayHandle* handle )
 	{
+		if( handle->type() == PlayHandle::TypeInstrumentPlayHandle )
+		{
+			lock();
+			m_instrumentPlayHandles.push_back( handle );
+			unlock();
+			return true;
+		}
+		
 		if( criticalXRuns() == false )
 		{
 			lock();
@@ -227,6 +235,11 @@ public:
 	inline PlayHandleList& playHandles()
 	{
 		return m_playHandles;
+	}
+	
+	inline PlayHandleList& instrumentPlayHandles()
+	{
+		return m_instrumentPlayHandles;
 	}
 
 	void removePlayHandles( track * _track );
@@ -431,6 +444,7 @@ private:
 
 
 	PlayHandleList m_playHandles;
+	PlayHandleList m_instrumentPlayHandles;	
 	ConstPlayHandleList m_playHandlesToRemove;
 
 	struct qualitySettings m_qualitySettings;
