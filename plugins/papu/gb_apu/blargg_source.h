@@ -46,7 +46,7 @@
 // using const references generates crappy code, and I am currenly only using these
 // for built-in types, so they take arguments by value
 
-template<class T>
+/*template<class T>
 inline T min( T x, T y )
 {
 	if ( x < y )
@@ -60,7 +60,11 @@ inline T max( T x, T y )
 	if ( x < y )
 		return y;
 	return x;
-}
+}*/
+// use Qt's min/max instead as those are likely to be faster
+#include <QtCore/QGlobal>
+#define min qMin
+#define max qMax
 
 #endif
 

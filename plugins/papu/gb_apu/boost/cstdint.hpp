@@ -16,22 +16,22 @@ BLARGG_BEGIN_NAMESPACE( boost )
 #   error "No suitable 8-bit type available"
 #endif
 
-typedef unsigned char   uint8_t;
-typedef signed char     int8_t;
+typedef uint8_t uint8_t;
+typedef int8_t int8_t;
 
 #if USHRT_MAX != 0xFFFF
 #   error "No suitable 16-bit type available"
 #endif
 
-typedef short           int16_t;
-typedef unsigned short  uint16_t;
+typedef int16_t int16_t;
+typedef uint16_t uint16_t;
 
 #if ULONG_MAX == 0xFFFFFFFF
-	typedef long            int32_t;
-	typedef unsigned long   uint32_t;
+	typedef int32_t int32_t;
+	typedef uint32_t uint32_t;
 #elif UINT_MAX == 0xFFFFFFFF
-	typedef int             int32_t;
-	typedef unsigned int    uint32_t;
+	typedef int32_t int32_t;
+	typedef uint32_t uint32_t;
 #else
 #   error "No suitable 32-bit type available"
 #endif

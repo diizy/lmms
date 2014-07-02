@@ -7,7 +7,7 @@
 #define GB_APU_H
 
 typedef long     gb_time_t; // clock cycle count
-typedef unsigned gb_addr_t; // 16-bit address
+typedef uint16_t gb_addr_t; // 16-bit address
 
 #include "Gb_Oscs.h"
 
@@ -69,7 +69,7 @@ private:
 	Gb_Square   square2;
 	Gb_Wave     wave;
 	Gb_Noise    noise;
-	BOOST::uint8_t regs [register_count];
+	uint8_t regs [register_count];
 	Gb_Square::Synth square_synth; // shared between squares
 	Gb_Wave::Synth   other_synth;  // shared between wave and noise
 	
