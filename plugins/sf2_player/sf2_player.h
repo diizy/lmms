@@ -56,7 +56,7 @@ public:
 	sf2Instrument( InstrumentTrack * _instrument_track );
 	virtual ~sf2Instrument();
 
-	virtual void play( sampleFrame * _working_buffer );
+	virtual void play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph );
 
 	virtual void playNote( NotePlayHandle * _n,
 						sampleFrame * _working_buffer );

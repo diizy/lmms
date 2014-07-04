@@ -68,7 +68,7 @@ public:
 	ZynAddSubFxInstrument( InstrumentTrack * _instrument_track );
 	virtual ~ZynAddSubFxInstrument();
 
-	virtual void play( sampleFrame * _working_buffer );
+	virtual void play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph );
 
 	virtual bool handleMidiEvent( const MidiEvent& event, const MidiTime& time = MidiTime(), f_cnt_t offset = 0 );
 

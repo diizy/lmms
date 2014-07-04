@@ -385,7 +385,7 @@ PluginView * opl2instrument::instantiateView( QWidget * _parent )
 }
 
 
-void opl2instrument::play( sampleFrame * _working_buffer )
+void opl2instrument::play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph )
 {
 	emulatorMutex.lock();
 	theEmulator->update(renderbuffer, frameCount);

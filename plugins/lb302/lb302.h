@@ -142,7 +142,7 @@ public:
 	lb302Synth( InstrumentTrack * _instrument_track );
 	virtual ~lb302Synth();
 
-	virtual void play( sampleFrame * _working_buffer );
+	virtual void play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph );
 	virtual void playNote( NotePlayHandle * _n,
 						sampleFrame * _working_buffer );
 	virtual void deleteNotePluginData( NotePlayHandle * _n );

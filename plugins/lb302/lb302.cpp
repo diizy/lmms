@@ -778,7 +778,7 @@ void lb302Synth::processNote( NotePlayHandle * _n )
 
 
 
-void lb302Synth::play( sampleFrame * _working_buffer )
+void lb302Synth::play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph )
 {
 	while( ! m_notes.isEmpty() )
 	{

@@ -325,7 +325,7 @@ QString ZynAddSubFxInstrument::nodeName() const
 
 
 
-void ZynAddSubFxInstrument::play( sampleFrame * _buf )
+void ZynAddSubFxInstrument::play( sampleFrame * _buf, InstrumentPlayHandle * iph )
 {
 	m_pluginMutex.lock();
 	if( m_remotePlugin )

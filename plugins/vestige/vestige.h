@@ -54,7 +54,7 @@ public:
 	vestigeInstrument( InstrumentTrack * _instrument_track );
 	virtual ~vestigeInstrument();
 
-	virtual void play( sampleFrame * _working_buffer );
+	virtual void play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph );
 
 	virtual void saveSettings( QDomDocument & _doc, QDomElement & _parent );
 	virtual void loadSettings( const QDomElement & _this );

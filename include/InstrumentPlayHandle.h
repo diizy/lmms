@@ -33,6 +33,7 @@
 class InstrumentPlayHandle : public PlayHandle
 {
 public:
+	void * m_pluginData;
 	InstrumentPlayHandle( Instrument* instrument ) :
 		PlayHandle( TypeInstrumentPlayHandle ),
 		m_instrument( instrument )
@@ -49,7 +50,7 @@ public:
 		// if the instrument is midi-based, we can safely render right away
 		if( m_instrument->flags() & Instrument::IsMidiBased )
 		{
-			m_instrument->play( _working_buffer );
+			m_instrument->play( _working_buffer, this );
 			return;
 		}
 		

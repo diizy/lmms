@@ -290,7 +290,7 @@ void vestigeInstrument::loadFile( const QString & _file )
 
 
 
-void vestigeInstrument::play( sampleFrame * _buf )
+void vestigeInstrument::play( sampleFrame * _buf, InstrumentPlayHandle * iph )
 {
 	m_pluginMutex.lock();
 	if( m_plugin == NULL )

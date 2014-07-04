@@ -628,7 +628,7 @@ void sf2Instrument::playNote( NotePlayHandle * _n, sampleFrame * )
 
 // Could we get iph-based instruments support sample-exact models by using a
 // frame-length of 1 while rendering?
-void sf2Instrument::play( sampleFrame * _working_buffer )
+void sf2Instrument::play( sampleFrame * _working_buffer, InstrumentPlayHandle * iph )
 {
 	const fpp_t frames = engine::mixer()->framesPerPeriod();
 
