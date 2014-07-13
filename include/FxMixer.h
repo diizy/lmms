@@ -30,7 +30,7 @@
 #include "EffectChain.h"
 #include "JournallingObject.h"
 #include "ThreadableJob.h"
-
+#include "AudioPort.h"
 
 class FxRoute;
 typedef QVector<FxRoute *> FxRouteVector;
@@ -63,8 +63,13 @@ class FxChannel : public ThreadableJob
 
 		// pointers to other channels that send to this one
 		FxRouteVector m_receives;
+		
+		// pointers to audioports that send to this channel
+		PortVector m_ports;
 
 		virtual bool requiresProcessing() const { return true; }
+		
+		int m_processLevel;
 
 	private:
 		virtual void doProcessing( sampleFrame * _working_buffer );
@@ -117,7 +122,9 @@ public:
 	FxMixer();
 	virtual ~FxMixer();
 
-	void mixToChannel( const sampleFrame * _buf, fx_ch_t _ch );
+	//! connects a port to a channel
+	void connectPortToChannel( AudioPort * port, fx_ch_t oldch, fx_ch_t newch );
+	void disconnectPort( AudioPort * port, fx_ch_t ch );
 
 	void prepareMasterMix();
 	void masterMix( sampleFrame * _buf );

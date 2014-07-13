@@ -416,6 +416,14 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 
 	unlock();
 
+	// cleanup: clear AudioPort buffers
+	foreach( AudioPort * port, m_audioPorts )
+	{
+		if( port->hasInput() )
+		{
+			port->nextPeriod();
+		}
+	}
 
 	emit nextAudioBuffer();
 

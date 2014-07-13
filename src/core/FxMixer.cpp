@@ -102,12 +102,24 @@ void FxChannel::doProcessing( sampleFrame * _buf )
 	// <tobydox> particularly important for playHandles, so Instruments
 	//			 can operate on this buffer the whole time
 	// <tobydox> this improves cache hit rate
-	_buf = m_buffer;
+	// _buf = m_buffer;
 
 	if( m_muteModel.value() == false )
 	{
-		// OK, we are not muted, so we go recursively through all the channels
+		// OK, we are not muted, so we go recursively through all the channels and ports
 		// which send to us (our children)...
+		
+		// ports first - but only if we know to have input from them
+		foreach( AudioPort * senderPort, m_ports )
+		{
+			if( senderPort->hasInput() )
+			{
+				MixHelpers::add( m_buffer, senderPort->firstBuffer(), fpp );
+				m_hasInput = true;
+			}
+		}
+		
+		// then channels
 		foreach( FxRoute * senderRoute, m_receives )
 		{
 			FxChannel * sender = senderRoute->sender();
@@ -136,21 +148,21 @@ void FxChannel::doProcessing( sampleFrame * _buf )
 				if( ! volBuf && ! sendBuf ) // neither volume nor send has sample-exact data...
 				{
 					const float v = sender->m_volumeModel.value() * sendModel->value();
-					MixHelpers::addMultiplied( _buf, ch_buf, v, fpp );
+					MixHelpers::addMultiplied( m_buffer, ch_buf, v, fpp );
 				}
 				else if( volBuf && sendBuf ) // both volume and send have sample-exact data
 				{
-					MixHelpers::addMultipliedByBuffers( _buf, ch_buf, volBuf, sendBuf, fpp );					
+					MixHelpers::addMultipliedByBuffers( m_buffer, ch_buf, volBuf, sendBuf, fpp );					
 				}
 				else if( volBuf ) // volume has sample-exact data but send does not
 				{
 					const float v = sendModel->value();
-					MixHelpers::addMultipliedByBuffer( _buf, ch_buf, v, volBuf, fpp );
+					MixHelpers::addMultipliedByBuffer( m_buffer, ch_buf, v, volBuf, fpp );
 				}
 				else // vice versa
 				{
 					const float v = sender->m_volumeModel.value();
-					MixHelpers::addMultipliedByBuffer( _buf, ch_buf, v, sendBuf, fpp );
+					MixHelpers::addMultipliedByBuffer( m_buffer, ch_buf, v, sendBuf, fpp );
 				}
 			}
 
@@ -168,10 +180,10 @@ void FxChannel::doProcessing( sampleFrame * _buf )
 	}
 	if( m_hasInput || m_stillRunning )
 	{
-		m_stillRunning = m_fxChain.processAudioBuffer( _buf, fpp, m_hasInput );
+		m_stillRunning = m_fxChain.processAudioBuffer( m_buffer, fpp, m_hasInput );
 	}
-	m_peakLeft = qMax( m_peakLeft, engine::mixer()->peakValueLeft( _buf, fpp ) * v );
-	m_peakRight = qMax( m_peakRight, engine::mixer()->peakValueRight( _buf, fpp ) * v );
+	m_peakLeft = qMax( m_peakLeft, engine::mixer()->peakValueLeft( m_buffer, fpp ) * v );
+	m_peakRight = qMax( m_peakRight, engine::mixer()->peakValueRight( m_buffer, fpp ) * v );
 }
 
 
@@ -216,9 +228,15 @@ int FxMixer::createChannel()
 
 void FxMixer::deleteChannel( int index )
 {
-	m_fxChannels[index]->m_lock.lock();
-
 	FxChannel * ch = m_fxChannels[index];
+
+	// connect audioports sending to this channel (if any) to master instead
+	foreach( AudioPort * port, ch->m_ports )
+	{
+		connectPortToChannel( port, index, 0 );
+	}
+
+	m_fxChannels[index]->m_lock.lock();
 
 	// go through every instrument and adjust for the channel index change
 	TrackContainer::TrackList tracks;
@@ -461,18 +479,40 @@ FloatModel * FxMixer::channelSendModel( fx_ch_t fromChannel, fx_ch_t toChannel )
 }
 
 
-
-void FxMixer::mixToChannel( const sampleFrame * _buf, fx_ch_t _ch )
+void FxMixer::connectPortToChannel( AudioPort * port, fx_ch_t oldch, fx_ch_t newch )
 {
-	if( m_fxChannels[_ch]->m_muteModel.value() == false )
+	FxChannel * oldFx = m_fxChannels[oldch];
+	FxChannel * newFx = m_fxChannels[newch];
+	
+	// remove port from old channel
+	oldFx->m_lock.lock();
+	while( oldFx->m_ports.contains( port ) )
 	{
-		m_fxChannels[_ch]->m_lock.lock();
-		MixHelpers::add( m_fxChannels[_ch]->m_buffer, _buf, engine::mixer()->framesPerPeriod() );
-		m_fxChannels[_ch]->m_hasInput = true;
-		m_fxChannels[_ch]->m_lock.unlock();
+		oldFx->m_ports.remove( oldFx->m_ports.indexOf( port ) );
 	}
+	oldFx->m_lock.unlock();
+	
+	// add port to new channel
+	newFx->m_lock.lock();
+	if( ! newFx->m_ports.contains( port ) )
+	{
+		newFx->m_ports.append( port );
+	}
+	newFx->m_lock.unlock();
 }
 
+
+void FxMixer::disconnectPort( AudioPort * port, fx_ch_t ch )
+{
+	FxChannel * fxc = m_fxChannels[ch];
+	
+	fxc->m_lock.lock();
+	while( fxc->m_ports.contains( port ) )
+	{
+		fxc->m_ports.remove( fxc->m_ports.indexOf( port ) );
+	}
+	fxc->m_lock.unlock();
+}
 
 
 
@@ -545,11 +585,13 @@ void FxMixer::masterMix( sampleFrame * _buf )
 	// reset channel process state
 	for( int i = 0; i < numChannels(); ++i)
 	{
-		engine::mixer()->clearAudioBuffer( m_fxChannels[i]->m_buffer, engine::mixer()->framesPerPeriod() );
+		if( m_fxChannels[i]->m_hasInput ) // savings: only clear buffer if channel was used this period
+		{
+			engine::mixer()->clearAudioBuffer( m_fxChannels[i]->m_buffer, engine::mixer()->framesPerPeriod() );
+			m_fxChannels[i]->m_hasInput = false;
+		}
 		m_fxChannels[i]->reset();
 		m_fxChannels[i]->m_queued = false;
-		// also reset hasInput
-		m_fxChannels[i]->m_hasInput = false;
 	}
 }
 

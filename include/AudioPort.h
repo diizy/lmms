@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _AUDIO_PORT_H
-#define _AUDIO_PORT_H
+#ifndef AUDIO_PORT_H
+#define AUDIO_PORT_H
 
 #include <QtCore/QString>
 #include <QtCore/QMutex>
@@ -31,6 +31,7 @@
 
 #include "Mixer.h"
 
+class FxChannel;
 class EffectChain;
 
 class AudioPort : public ThreadableJob
@@ -88,6 +89,11 @@ public:
 		return m_nextFxChannel;
 	}
 
+	inline fx_ch_t currentFxChannel() const
+	{
+		return m_currentFxChannel;
+	}
+
 	inline EffectChain * effects()
 	{
 		return m_effects;
@@ -97,7 +103,6 @@ public:
 	{
 		m_nextFxChannel = _chnl;
 	}
-
 
 	const QString & name() const
 	{
@@ -124,6 +129,11 @@ public:
 		BothBuffers
 	} ;
 
+	//! used by FxChannel to determine whether it should pull audio from this port
+	bool hasInput() const
+	{
+		return m_hasInput;
+	}
 
 private:
 	volatile bufferUsages m_bufferUsage;
@@ -135,10 +145,13 @@ private:
 
 	bool m_extOutputEnabled;
 	fx_ch_t m_nextFxChannel;
+	fx_ch_t m_currentFxChannel;
 
 	QString m_name;
 	
 	EffectChain * m_effects;
+	
+	bool m_hasInput;
 
 
 	friend class Mixer;
@@ -146,5 +159,6 @@ private:
 
 } ;
 
+typedef QVector<AudioPort *> PortVector;
 
 #endif

@@ -36,6 +36,7 @@ AudioPort::AudioPort( const QString & _name, bool _has_effect_chain ) :
 				engine::mixer()->framesPerPeriod()] ),
 	m_extOutputEnabled( false ),
 	m_nextFxChannel( 0 ),
+	m_currentFxChannel( 0 ),
 	m_name( "unnamed port" ),
 	m_effects( _has_effect_chain ? new EffectChain( NULL ) : NULL )
 {
@@ -43,6 +44,7 @@ AudioPort::AudioPort( const QString & _name, bool _has_effect_chain ) :
 	engine::mixer()->clearAudioBuffer( m_secondBuffer, engine::mixer()->framesPerPeriod() );
 	engine::mixer()->addAudioPort( this );
 	setExtOutputEnabled( true );
+	engine::fxMixer()->connectPortToChannel( this, 0, 0 );
 }
 
 
@@ -50,6 +52,7 @@ AudioPort::AudioPort( const QString & _name, bool _has_effect_chain ) :
 
 AudioPort::~AudioPort()
 {
+	engine::fxMixer()->disconnectPort( this, currentFxChannel() );
 	setExtOutputEnabled( false );
 	engine::mixer()->removeAudioPort( this );
 	delete[] m_firstBuffer;
@@ -62,7 +65,6 @@ AudioPort::~AudioPort()
 
 void AudioPort::nextPeriod()
 {
-	m_firstBufferLock.lock();
 	engine::mixer()->clearAudioBuffer( m_firstBuffer, engine::mixer()->framesPerPeriod() );
 	qSwap( m_firstBuffer, m_secondBuffer );
 
@@ -70,8 +72,8 @@ void AudioPort::nextPeriod()
 	m_bufferUsage = ( m_bufferUsage != NoUsage ) ?
 		( ( m_bufferUsage == FirstBuffer ) ?
 					NoUsage : FirstBuffer ) : NoUsage;
-
-	m_firstBufferLock.unlock();
+	
+	m_hasInput = false;
 }
 
 
@@ -121,11 +123,14 @@ bool AudioPort::processEffects()
 
 void AudioPort::doProcessing( sampleFrame * )
 {
+	if( currentFxChannel() != nextFxChannel() )
+	{
+		engine::fxMixer()->connectPortToChannel( this, currentFxChannel(), nextFxChannel() );
+		m_currentFxChannel = m_nextFxChannel;
+	}
 	const bool me = processEffects();
 	if( me || m_bufferUsage != NoUsage )
 	{
-		engine::fxMixer()->mixToChannel( firstBuffer(), nextFxChannel() );
-		nextPeriod();
+		m_hasInput = true;
 	}
 }
-
