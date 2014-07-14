@@ -2,6 +2,7 @@
 #define INMGR_H
 
 #include <string>
+#include "ZynSema.h"
 #include "SafeQueue.h"
 
 enum midi_type {
@@ -39,16 +40,18 @@ class InMgr
 
         std::string getSource() const;
 
+        void setMaster(class Master *master);
+
         friend class EngineMgr;
     private:
         InMgr();
         class MidiIn *getIn(std::string name);
         SafeQueue<MidiEvent> queue;
-        mutable sem_t work;
+        mutable ZynSema work;
         class MidiIn * current;
 
         /**the link to the rest of zyn*/
-        class Master & master;
+        class Master *master;
 };
 
 #endif

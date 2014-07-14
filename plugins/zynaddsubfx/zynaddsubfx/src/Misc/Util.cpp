@@ -207,7 +207,7 @@ void clearTmpBuffers(void)
     pool.clear();
 }
 
-float SYNTH_T::numRandom()
+float SYNTH_T::numRandom() const
 {
     return RND;
 }
@@ -227,4 +227,10 @@ float cinterpolate(const float *data, size_t len, float pos)
               r_pos      = (l_pos + 1) % len;
     const float leftness = pos - l_pos;
     return data[l_pos] * leftness + data[r_pos] * (1.0f - leftness);
+}
+
+const char *message_snip(const char *m)
+{
+    while(*m && *m!='/')++m;
+    return *m?m+1:m;
 }

@@ -2,9 +2,14 @@
 #include "MidiIn.h"
 #include "EngineMgr.h"
 #include "../Misc/Master.h"
+#include "../Misc/Part.h"
+#include "../Misc/MiddleWare.h"
+#include <rtosc/thread-link.h>
 #include <iostream>
 
 using namespace std;
+
+extern MiddleWare *middleware;
 
 ostream &operator<<(ostream &out, const MidiEvent &ev)
 {
@@ -41,16 +46,15 @@ InMgr &InMgr::getInstance()
 }
 
 InMgr::InMgr()
-    :queue(100), master(Master::getInstance())
+    :queue(100), master(NULL)
 {
     current = NULL;
-    sem_init(&work, PTHREAD_PROCESS_PRIVATE, 0);
+    work.init(PTHREAD_PROCESS_PRIVATE, 0);
 }
 
 InMgr::~InMgr()
 {
     //lets stop the consumer thread
-    sem_destroy(&work);
 }
 
 void InMgr::putEvent(MidiEvent ev)
@@ -58,17 +62,17 @@ void InMgr::putEvent(MidiEvent ev)
     if(queue.push(ev)) //check for error
         cerr << "ERROR: Midi Ringbuffer is FULL" << endl;
     else
-        sem_post(&work);
+        work.post();
 }
 
 void InMgr::flush(unsigned frameStart, unsigned frameStop)
 {
     MidiEvent ev;
-    while(!sem_trywait(&work)) {
+    while(!work.trywait()) {
         queue.peak(ev);
         if(ev.time < (int)frameStart || ev.time > (int)frameStop) {
             //Back out of transaction
-            sem_post(&work);
+            work.post();
             //printf("%d vs [%d..%d]\n",ev.time, frameStart, frameStop);
             break;
         }
@@ -80,21 +84,28 @@ void InMgr::flush(unsigned frameStart, unsigned frameStop)
                 dump.dumpnote(ev.channel, ev.num, ev.value);
 
                 if(ev.value)
-                    master.noteOn(ev.channel, ev.num, ev.value);
+                    master->noteOn(ev.channel, ev.num, ev.value);
                 else
-                    master.noteOff(ev.channel, ev.num);
+                    master->noteOff(ev.channel, ev.num);
                 break;
 
             case M_CONTROLLER:
                 dump.dumpcontroller(ev.channel, ev.num, ev.value);
-                master.setController(ev.channel, ev.num, ev.value);
+                master->setController(ev.channel, ev.num, ev.value);
                 break;
 
             case M_PGMCHANGE:
-                master.setProgram(ev.channel, ev.num);
+                for(int i=0; i < NUM_MIDI_PARTS; ++i) {
+                    //set the program of the parts assigned to the midi channel
+                    if(master->part[i]->Prcvchn == ev.channel) {
+                        bToU->write("/setprogram", "cc", i, ev.num);
+                        middleware->pendingSetProgram(i);
+                    }
+                }
                 break;
+
             case M_PRESSURE:
-                master.polyphonicAftertouch(ev.channel, ev.num, ev.value);
+                master->polyphonicAftertouch(ev.channel, ev.num, ev.value);
                 break;
         }
     }
@@ -102,8 +113,7 @@ void InMgr::flush(unsigned frameStart, unsigned frameStop)
 
 bool InMgr::empty(void) const
 {
-    int semvalue = 0;
-    sem_getvalue(&work, &semvalue);
+    int semvalue = work.getvalue();
     return semvalue <= 0;
 }
 
@@ -140,4 +150,9 @@ MidiIn *InMgr::getIn(string name)
 {
     EngineMgr &eng = EngineMgr::getInstance();
     return dynamic_cast<MidiIn *>(eng.getEng(name));
+}
+
+void InMgr::setMaster(Master *master_)
+{
+    master = master_;
 }

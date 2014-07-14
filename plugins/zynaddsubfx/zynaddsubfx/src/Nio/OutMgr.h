@@ -41,6 +41,8 @@ class OutMgr
 
         class WavEngine * wave;     /**<The Wave Recorder*/
         friend class EngineMgr;
+
+        void setMaster(class Master *master_);
     private:
         OutMgr();
         void addSmps(float *l, float *r);
@@ -57,7 +59,7 @@ class OutMgr
 
         float *outl;
         float *outr;
-        class Master & master;
+        class Master *master;
 
         int stales;
 };
