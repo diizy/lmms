@@ -114,10 +114,7 @@ void FxChannel::doProcessing( sampleFrame * _buf )
 			FloatModel * sendModel = senderRoute->amount();
 			if( ! sendModel ) qFatal( "Error: no send model found from %d to %d", senderRoute->senderIndex(), m_channelIndex );
 
-			// wait for the sender job - either it's just been queued yet,
-			// then ThreadableJob::process() will process it now within this
-			// thread - otherwise it has been is is being processed by another
-			// thread and we just have to wait for it to finish
+			// wait for the sender job 
 			while( sender->state() != ThreadableJob::Done )
 			{
 				sender->process();
@@ -163,7 +160,8 @@ void FxChannel::doProcessing( sampleFrame * _buf )
 FxMixer::FxMixer() :
 	JournallingObject(),
 	Model( NULL ),
-	m_fxChannels()
+	m_fxChannels(),
+	m_processingTreeNeedsRebuild( true )
 {
 	// create master channel
 	createChannel();
@@ -242,6 +240,8 @@ void FxMixer::deleteChannel( int index )
 	// actually delete the channel
 	delete m_fxChannels[index];
 	m_fxChannels.remove(index);
+	
+	m_processingTreeNeedsRebuild = true;
 
 	for( int i = index; i < m_fxChannels.size(); ++i )
 	{
@@ -292,6 +292,8 @@ void FxMixer::moveChannelLeft( int index )
 	FxChannel * tmpChannel = m_fxChannels[a];
 	m_fxChannels[a] = m_fxChannels[b];
 	m_fxChannels[b] = tmpChannel;
+	
+	m_processingTreeNeedsRebuild = true;
 
 	validateChannelName( a, b );
 	validateChannelName( b, a );
@@ -346,6 +348,8 @@ void FxMixer::createRoute( FxChannel * from, FxChannel * to, float amount )
 
 	// add us to fxmixer's list
 	engine::fxMixer()->m_fxRoutes.append( route );
+	
+	m_processingTreeNeedsRebuild = true;
 	m_sendsMutex.unlock();
 }
 
@@ -379,6 +383,7 @@ void FxMixer::deleteChannelSend( FxRoute * route )
 	// remove us from fxmixer's list
 	engine::fxMixer()->m_fxRoutes.remove( engine::fxMixer()->m_fxRoutes.indexOf( route ) );
 	delete route;
+	m_processingTreeNeedsRebuild = true;
 	m_sendsMutex.unlock();
 }
 
@@ -467,23 +472,66 @@ void FxMixer::prepareMasterMix()
 }
 
 
-
-void FxMixer::addChannelLeaf( FxChannel * ch, sampleFrame * buf )
+void FxMixer::rebuildProcessingTree()
 {
-	// if we're muted or this channel is seen already, discount it
+	FxChannelVector fxcv;
+
+	// start by clearing the old processing tree
+	m_processingTree.clear();
+
+	// then first get fx channels that have no receives
+	// while we're at it, also reset "queued" status of all channels to false
+	foreach( FxChannel * ch, m_fxChannels )
+	{
+		ch->m_queued = false;
+		if( ch->m_receives.isEmpty() )
+		{
+			fxcv += ch;
+		}
+	}
+	
+	// then go through the channels top-down 
+	// and assign priorities until we reach master
+	foreach( FxChannel * ch, fxcv )
+	{
+		assignChannelPriority( ch, 0 );
+	}
+	
+	// now add channels to processing tree by recursing up - so only channels that reach master get added
+	addChannelLeaf( m_fxChannels[0] );
+	
+	// lastly sort the processing tree using the assigned priorities
+	qSort( m_processingTree.begin(), m_processingTree.end() );
+	
+	m_processingTreeNeedsRebuild = false;
+}
+
+void FxMixer::assignChannelPriority( FxChannel * ch, int priority )
+{
+	ch->m_priority = priority;
+	// recurse downwards
+	foreach( FxRoute * route, ch->m_sends )
+	{
+		assignChannelPriority( route->receiver(), priority + 1 );
+	}
+}
+
+void FxMixer::addChannelLeaf( FxChannel * ch )
+{
+	// if this channel is seen already, discount it
 	if( ch->m_queued )
 	{
 		return;
 	}
 
-	foreach( FxRoute * senderRoute, ch->m_receives )
+	foreach( FxRoute * route, ch->m_receives )
 	{
-		addChannelLeaf( senderRoute->sender(), buf );
+		addChannelLeaf( route->sender() );
 	}
 
-	// add this channel to job list
+	// add this channel to processing tree
 	ch->m_queued = true;
-	MixerWorkerThread::addJob( ch );
+	m_processingTree.append( ch );
 }
 
 
@@ -492,18 +540,15 @@ void FxMixer::masterMix( sampleFrame * _buf )
 {
 	const int fpp = engine::mixer()->framesPerPeriod();
 
-	// recursively loop through channel dependency chain
-	// and add all channels to job list that have no dependencies
-	// when the channel completes it will check its parent to see if it needs
-	// to be processed.
-	//m_sendsMutex.lock();
-	MixerWorkerThread::resetJobQueue( MixerWorkerThread::JobQueue::Dynamic );
-	addChannelLeaf( m_fxChannels[0], _buf );
-	while( m_fxChannels[0]->state() != ThreadableJob::Done )
+	// if the processing tree needs to be rebuilt (channels/sends modified), do it
+	// then add the processing tree as-is to job queue
+	if( m_processingTreeNeedsRebuild )
 	{
-		MixerWorkerThread::startAndWaitForJobs();
+		rebuildProcessingTree();
 	}
-	//m_sendsMutex.unlock();
+
+	MixerWorkerThread::fillJobQueue<FxChannelVector>( m_processingTree );
+	MixerWorkerThread::startAndWaitForJobs();
 
 	const float v = m_fxChannels[0]->m_volumeModel.value();
 	MixHelpers::addSanitizedMultiplied( _buf, m_fxChannels[0]->m_buffer, v, fpp );
@@ -517,7 +562,6 @@ void FxMixer::masterMix( sampleFrame * _buf )
 	{
 		engine::mixer()->clearAudioBuffer( m_fxChannels[i]->m_buffer, engine::mixer()->framesPerPeriod() );
 		m_fxChannels[i]->reset();
-		m_fxChannels[i]->m_queued = false;
 		// also reset hasInput
 		m_fxChannels[i]->m_hasInput = false;
 	}
@@ -565,6 +609,8 @@ void FxMixer::clearChannel(fx_ch_t index)
 	{
 		deleteChannelSend( ch->m_receives.first() );
 	}
+
+	m_processingTreeNeedsRebuild = true;
 }
 
 void FxMixer::saveSettings( QDomDocument & _doc, QDomElement & _this )

@@ -57,6 +57,7 @@ class FxChannel : public ThreadableJob
 		QMutex m_lock;
 		int m_channelIndex; // what channel index are we
 		bool m_queued; // are we queued up for rendering yet?
+		int m_priority; // order in the processing tree
 
 		// pointers to other channels that this one sends to
 		FxRouteVector m_sends;
@@ -66,10 +67,16 @@ class FxChannel : public ThreadableJob
 
 		virtual bool requiresProcessing() const { return true; }
 
+		bool operator < ( FxChannel & f )
+		{
+			return m_priority < f.m_priority;
+		}
+
 	private:
 		virtual void doProcessing( sampleFrame * _working_buffer );
 };
 
+typedef QVector<FxChannel *> FxChannelVector;
 
 class FxRoute : public QObject
 {
@@ -183,14 +190,19 @@ public:
 
 private:
 	// the fx channels in the mixer. index 0 is always master.
-	QVector<FxChannel *> m_fxChannels;
+	FxChannelVector m_fxChannels;
+	// stores the processing order of the fx channels.
+	FxChannelVector m_processingTree;
+	bool m_processingTreeNeedsRebuild;
 
 	// make sure we have at least num channels
 	void allocateChannelsTo(int num);
 	QMutex m_sendsMutex;
 
-	void addChannelLeaf( FxChannel * ch, sampleFrame * buf );
-
+	void rebuildProcessingTree();
+	void addChannelLeaf( FxChannel * ch );
+	void assignChannelPriority( FxChannel * ch, int priority );
+	
 	friend class MixerWorkerThread;
 	friend class FxMixerView;
 
