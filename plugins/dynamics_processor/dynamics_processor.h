@@ -24,8 +24,8 @@
  */
 
 
-#ifndef _DYNPROC_H
-#define _DYNPROC_H
+#ifndef DYNPROC_H
+#define DYNPROC_H
 
 #include "Effect.h"
 #include "dynamics_processor_controls.h"

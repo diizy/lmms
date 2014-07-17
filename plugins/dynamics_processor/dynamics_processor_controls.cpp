@@ -45,24 +45,17 @@ dynProcControls::dynProcControls( dynProcEffect * _eff ) :
 	m_wavegraphModel( 0.0f, 1.0f, 200, this ),
 	m_stereomodeModel( 0, 0, 2, this, tr( "Stereo mode" ) )
 {
-/*	connect( &m_inputModel, SIGNAL( dataChanged() ),
-			this, SLOT( changeControl() ) );
-
-	connect( &m_outputModel, SIGNAL( dataChanged() ),
-			this, SLOT( changeControl() ) );
-			
 	connect( &m_attackModel, SIGNAL( dataChanged() ),
 			this, SLOT( changeControl() ) );
 			
 	connect( &m_releaseModel, SIGNAL( dataChanged() ),
 			this, SLOT( changeControl() ) );
-			
-	connect( &m_stereomodeModel, SIGNAL( dataChanged() ),
-			this, SLOT( changeControl() ) );
-*/
+
 	connect( &m_wavegraphModel, SIGNAL( samplesChanged( int, int ) ),
 			this, SLOT( samplesChanged( int, int ) ) );
 
+	connect( engine::mixer(), SIGNAL( sampleRateChanged() ), 
+			this, SLOT( changeControl() ) );
 
 	setDefaultShape();
 
@@ -72,7 +65,8 @@ dynProcControls::dynProcControls( dynProcEffect * _eff ) :
 
 void dynProcControls::changeControl()
 {
-//	engine::getSong()->setModified();
+	m_attackCoeff = ( 1.0f / ( m_attackModel.value() * 0.001f ) ) / engine::mixer()->processingSampleRate();
+	m_releaseCoeff = ( 1.0f / ( m_releaseModel.value() * 0.001f ) ) / engine::mixer()->processingSampleRate();
 }
 
 void dynProcControls::samplesChanged( int _begin, int _end)

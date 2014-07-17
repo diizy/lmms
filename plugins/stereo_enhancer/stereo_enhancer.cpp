@@ -81,15 +81,10 @@ stereoEnhancerEffect::~stereoEnhancerEffect()
 bool stereoEnhancerEffect::processAudioBuffer( sampleFrame * _buf,
 							const fpp_t _frames )
 {
-	
-	// This appears to be used for determining whether or not to continue processing
-	// audio with this effect	
-	double out_sum = 0.0;
-	
 	float width;
 	int frameIndex = 0;
-	
-	
+
+
 	if( !isEnabled() || !isRunning() )
 	{
 		return( false );
@@ -100,7 +95,7 @@ bool stereoEnhancerEffect::processAudioBuffer( sampleFrame * _buf,
 
 	for( fpp_t f = 0; f < _frames; ++f )
 	{
-		
+
 		// copy samples into the delay buffer
 		m_delayBuffer[m_currFrame][0] = _buf[f][0];
 		m_delayBuffer[m_currFrame][1] = _buf[f][1];
@@ -124,14 +119,13 @@ bool stereoEnhancerEffect::processAudioBuffer( sampleFrame * _buf,
 
 		_buf[f][0] = d * _buf[f][0] + w * s[0];
 		_buf[f][1] = d * _buf[f][1] + w * s[1];
-		out_sum += _buf[f][0]*_buf[f][0] + _buf[f][1]*_buf[f][1];
 
 		// Update currFrame
 		m_currFrame += 1;
 		m_currFrame %= DEFAULT_BUFFER_SIZE;
 	}
 
-	checkGate( out_sum / _frames );
+	checkGate( _buf, _frames );
 	if( !isRunning() )
 	{
 		clearMyBuffer();

@@ -31,7 +31,7 @@
 #include "Mixer.h"
 #include "AutomatableModel.h"
 #include "TempoSyncKnobModel.h"
-
+#include "lmms_math.h"
 
 class EffectChain;
 class EffectControls;
@@ -117,8 +117,7 @@ public:
 
 	inline float gate() const
 	{
-		const float level = m_gateModel.value();
-		return level*level * m_processors;
+		return m_gateModel.value();
 	}
 
 	inline f_cnt_t bufferCount() const
@@ -164,7 +163,36 @@ public:
 
 
 protected:
-	void checkGate( double _out_sum );
+	inline void checkGate( sampleFrame * buf, fpp_t fpp )
+	{
+		// Check whether we need to continue processing input.  Restart the
+		// counter if the threshold has been exceeded.
+		bool sound = false;
+		for( f_cnt_t f = 0; f < fpp; ++f )
+		{
+			if( qAbs( buf[f][0] ) - gate() > typeInfo<float>::minEps() || 
+				qAbs( buf[f][1] ) - gate() > typeInfo<float>::minEps() )
+			{
+				sound = true;
+				break;
+			}
+		}
+
+		if( ! sound )
+		{
+			incrementBufferCount();
+			if( bufferCount() > timeout() )
+			{
+				stopRunning();
+				resetBufferCount();
+			}
+		}
+		else
+		{
+			resetBufferCount();
+		}
+	}
+
 
 	virtual PluginView * instantiateView( QWidget * );
 

@@ -89,6 +89,9 @@ private:
 	FloatModel m_releaseModel;
 	graphModel m_wavegraphModel;
 	IntModel m_stereomodeModel;
+	
+	float m_attackCoeff;
+	float m_releaseCoeff;
 
 	friend class dynProcControlDialog;
 	friend class dynProcEffect;

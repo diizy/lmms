@@ -79,7 +79,6 @@ bool waveShaperEffect::processAudioBuffer( sampleFrame * _buf,
 // variables for effect
 	int i = 0;
 
-	double out_sum = 0.0;
 	const float d = dryLevel();
 	const float w = wetLevel();
 	for( fpp_t f = 0; f < _frames; ++f )
@@ -128,11 +127,9 @@ bool waveShaperEffect::processAudioBuffer( sampleFrame * _buf,
 // mix wet/dry signals
 		_buf[f][0] = d * _buf[f][0] + w * s[0];
 		_buf[f][1] = d * _buf[f][1] + w * s[1];
-
-		out_sum += _buf[f][0]*_buf[f][0] + _buf[f][1]*_buf[f][1];
 	}
 
-	checkGate( out_sum / _frames );
+	checkGate( _buf, _frames );
 
 	return( isRunning() );
 }

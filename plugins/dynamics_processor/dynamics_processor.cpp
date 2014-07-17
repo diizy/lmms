@@ -70,8 +70,8 @@ dynProcEffect::~dynProcEffect()
 
 
 
-bool dynProcEffect::processAudioBuffer( sampleFrame * _buf,
-							const fpp_t _frames )
+bool dynProcEffect::processAudioBuffer( sampleFrame * buf,
+							const fpp_t frames )
 {
 	if( !isEnabled() || !isRunning () )
 	{
@@ -104,19 +104,18 @@ bool dynProcEffect::processAudioBuffer( sampleFrame * _buf,
 	float sm_peak[2] = { 0.0f, 0.0f };
 	float gain;
 
-	double out_sum = 0.0;
 	const float d = dryLevel();
 	const float w = wetLevel();
 
 // debug code	
 //	qDebug( "peaks %f %f", currentPeak[0], currentPeak[1] );
 	
-	float att_tmp = ( 1.0f / ( m_dpControls.m_attackModel.value() / 1000.0f ) ) / engine::mixer()->processingSampleRate();
-	float rel_tmp = ( 1.0f / ( m_dpControls.m_releaseModel.value() / 1000.0f ) ) / engine::mixer()->processingSampleRate();
+	float att_tmp = m_dpControls.m_attackCoeff;
+	float rel_tmp = m_dpControls.m_releaseCoeff;
 	
-	for( fpp_t f = 0; f < _frames; ++f )
+	for( fpp_t f = 0; f < frames; ++f )
 	{
-		sample_t s[2] = { _buf[f][0], _buf[f][1] };
+		sample_t s[2] = { buf[f][0], buf[f][1] };
 
 // check for nan/inf because they may cause errors?
 		if( isnanf( s[0] ) ) s[0] = 0.0f;
@@ -203,13 +202,11 @@ bool dynProcEffect::processAudioBuffer( sampleFrame * _buf,
 		s[1] *= m_dpControls.m_outputModel.value();
 
 // mix wet/dry signals
-		_buf[f][0] = d * _buf[f][0] + w * s[0];
-		_buf[f][1] = d * _buf[f][1] + w * s[1];
-
-		out_sum += _buf[f][0]*_buf[f][0] + _buf[f][1]*_buf[f][1];
+		buf[f][0] = d * buf[f][0] + w * s[0];
+		buf[f][1] = d * buf[f][1] + w * s[1];
 	}
 
-	checkGate( out_sum / _frames );
+	checkGate( buf, frames );
 
 	return( isRunning() );
 }

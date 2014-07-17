@@ -99,22 +99,17 @@ bool VstEffect::processAudioBuffer( sampleFrame * _buf, const fpp_t _frames )
 		m_plugin->process( buf, buf );
 		m_pluginMutex.unlock();
 
-		double out_sum = 0.0;
 		const float w = wetLevel();
 		for( fpp_t f = 0; f < _frames; ++f )
 		{
 			_buf[f][0] = w*buf[f][0] + d*_buf[f][0];
 			_buf[f][1] = w*buf[f][1] + d*_buf[f][1];
 		}
-		for( fpp_t f = 0; f < _frames; ++f )
-		{
-			out_sum += _buf[f][0]*_buf[f][0] + _buf[f][1]*_buf[f][1];
-		}
 #ifndef __GNUC__
 		delete[] buf;
 #endif
 
-		checkGate( out_sum / _frames );
+		checkGate( _buf, _frames );
 	}
 	return isRunning();
 }

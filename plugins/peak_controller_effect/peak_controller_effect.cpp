@@ -169,8 +169,6 @@ bool PeakControllerEffect::processAudioBuffer( sampleFrame * _buf,
 		m_lastRMS = (1-a)*origRMS + a*m_lastRMS;
 	}
 
-	//checkGate( out_sum / _frames );
-
 	return isRunning();
 }
 
