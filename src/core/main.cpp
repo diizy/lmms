@@ -56,6 +56,7 @@
 #include <unistd.h>
 #endif
 
+#include "MemoryManager.h"
 #include "ConfigManager.h"
 #include "embed.h"
 #include "engine.h"
@@ -89,6 +90,9 @@ inline void loadTranslation( const QString & _tname,
 
 int main( int argc, char * * argv )
 {
+	// initialize memory manager
+	MemoryManager::init();
+	
 	// intialize RNG
 	srand( getpid() + time( 0 ) );
 
@@ -511,6 +515,10 @@ int main( int argc, char * * argv )
 
 	const int ret = app->exec();
 	delete app;
+	
+	// cleanup memory manager
+	MemoryManager::cleanup();
+	
 	return( ret );
 }
 
