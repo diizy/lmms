@@ -40,6 +40,7 @@
 #include "templates.h"
 #include "lmms_constants.h"
 #include "interpolation.h"
+#include "MemoryManager.h"
 
 //#include <iostream>
 //#include <cstdlib>
@@ -47,6 +48,7 @@
 template<ch_cnt_t CHANNELS/* = DEFAULT_CHANNELS*/>
 class basicFilters
 {
+	MM_OPERATORS
 public:
 	enum FilterTypes
 	{
