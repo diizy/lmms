@@ -348,7 +348,11 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 
 		if( it != m_playHandles.end() )
 		{
-			delete *it;
+			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
+			{
+				NotePlayHandleManager::release( (NotePlayHandle*) *it );
+			}
+			else delete *it;
 			m_playHandles.erase( it );
 		}
 
@@ -399,7 +403,11 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 		}
 		if( ( *it )->isFinished() )
 		{
-			delete *it;
+			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
+			{
+				NotePlayHandleManager::release( (NotePlayHandle*) *it );
+			}
+			else delete *it;
 			it = m_playHandles.erase( it );
 		}
 		else
@@ -645,6 +653,24 @@ void Mixer::removeAudioPort( AudioPort * _port )
 }
 
 
+bool Mixer::addPlayHandle( PlayHandle* handle )
+{
+	if( criticalXRuns() == false )
+	{
+		m_playHandleMutex.lock();
+		m_newPlayHandles.append( handle );
+		m_playHandleMutex.unlock();
+		return true;
+	}
+
+	if( handle->type() == PlayHandle::TypeNotePlayHandle ) 
+	{
+		NotePlayHandleManager::release( (NotePlayHandle*)handle );
+	}
+	else delete handle;
+
+	return false;
+}
 
 
 void Mixer::removePlayHandle( PlayHandle * _ph )
@@ -661,7 +687,11 @@ void Mixer::removePlayHandle( PlayHandle * _ph )
 		if( it != m_playHandles.end() )
 		{
 			m_playHandles.erase( it );
-			delete _ph;
+			if( _ph->type() == PlayHandle::TypeNotePlayHandle ) 
+			{
+				NotePlayHandleManager::release( (NotePlayHandle*) _ph );
+			}
+			else delete _ph;
 		}
 		unlockPlayHandleRemoval();
 	}
@@ -682,7 +712,11 @@ void Mixer::removePlayHandles( track * _track, bool removeIPHs )
 	{
 		if( ( *it )->isFromTrack( _track ) && ( removeIPHs || ( *it )->type() != PlayHandle::TypeInstrumentPlayHandle ) )
 		{
-			delete *it;
+			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
+			{
+				NotePlayHandleManager::release( (NotePlayHandle*) *it );
+			}
+			else delete *it;
 			it = m_playHandles.erase( it );
 		}
 		else
