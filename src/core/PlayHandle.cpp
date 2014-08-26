@@ -1,7 +1,7 @@
 /*
- * ThreadableJob.h - declaration of class ThreadableJob
+ * PlayHandle.cpp - base class PlayHandle - core of rendering engine
  *
- * Copyright (c) 2009-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
+ * Copyright (c) 2004-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
  *
  * This file is part of Linux MultiMedia Studio - http://lmms.sourceforge.net
  *
@@ -21,64 +21,42 @@
  * Boston, MA 02110-1301 USA.
  *
  */
-
-#ifndef THREADABLE_JOB_H
-#define THREADABLE_JOB_H
-
-#include <QtCore/QAtomicInt>
-
-#include "lmms_basics.h"
+ 
+#include "PlayHandle.h"
+#include "BufferManager.h"
 
 
-class ThreadableJob
+PlayHandle::PlayHandle( const Type type, f_cnt_t offset ) :
+		m_type( type ),
+		m_offset( offset ),
+		m_affinity( QThread::currentThread() ),
+		m_playHandleBuffer( NULL ),
+		m_usesBuffer( true )
 {
-public:
+}
 
-	enum ProcessingState
-	{
-		Unstarted,
-		Queued,
-		InProgress,
-		Done
-	};
 
-	ThreadableJob() :
-		m_state( ThreadableJob::Unstarted )
+PlayHandle::~PlayHandle()
+{
+}
+
+
+void PlayHandle::doProcessing()
+{
+	if( m_usesBuffer )
 	{
+		if( ! m_playHandleBuffer ) m_playHandleBuffer = BufferManager::acquire();
+		play( m_playHandleBuffer );
 	}
-
-	inline ProcessingState state() const
+	else
 	{
-		return static_cast<ProcessingState>( (int) m_state );
+		play( m_playHandleBuffer );
 	}
-
-	inline void reset()
-	{
-		m_state = Unstarted;
-	}
-
-	inline void queue()
-	{
-		m_state = Queued;
-	}
-
-	void process()
-	{
-		if( m_state.testAndSetOrdered( Queued, InProgress ) )
-		{
-			doProcessing();
-			m_state = Done;
-		}
-	}
-
-	virtual bool requiresProcessing() const = 0;
+}
 
 
-protected:
-	virtual void doProcessing() = 0;
-
-	QAtomicInt m_state;
-
-} ;
-
-#endif
+void PlayHandle::releaseBuffer()
+{
+	BufferManager::release( m_playHandleBuffer );
+	m_playHandleBuffer = NULL;
+}

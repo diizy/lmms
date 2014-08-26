@@ -57,7 +57,7 @@
 #include "MidiDummy.h"
 
 #include "MemoryHelper.h"
-
+#include "BufferManager.h"
 
 
 
@@ -348,6 +348,7 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 
 		if( it != m_playHandles.end() )
 		{
+			( *it )->audioPort()->removePlayHandle( ( *it ) );
 			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
 			{
 				NotePlayHandleManager::release( (NotePlayHandle*) *it );
@@ -403,6 +404,7 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 		}
 		if( ( *it )->isFinished() )
 		{
+			( *it )->audioPort()->removePlayHandle( ( *it ) );
 			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
 			{
 				NotePlayHandleManager::release( (NotePlayHandle*) *it );
@@ -416,7 +418,6 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 		}
 	}
 	unlockPlayHandleRemoval();
-
 
 	// STAGE 2: process effects of all instrument- and sampletracks
 	MixerWorkerThread::fillJobQueue<QVector<AudioPort *> >( m_audioPorts );
@@ -435,6 +436,9 @@ const surroundSampleFrame * Mixer::renderNextBuffer()
 	EnvelopeAndLfoParameters::instances()->trigger();
 	Controller::triggerFrameCounter();
 	AutomatableModel::incrementPeriodCounter();
+	
+	// refresh buffer pool
+	BufferManager::refresh();
 
 	m_profiler.finishPeriod( processingSampleRate(), m_framesPerPeriod );
 
@@ -460,45 +464,6 @@ void Mixer::clear()
 		}
 	}
 	unlock();
-}
-
-
-
-
-void Mixer::bufferToPort( const sampleFrame * buf,
-					const fpp_t frames,
-					stereoVolumeVector vv,
-						AudioPort * port )
-{
-	const int loop1_frame = qMin<int>( frames, m_framesPerPeriod );
-
-	port->lockFirstBuffer();
-	MixHelpers::addMultipliedStereo( port->firstBuffer(),				// dst
-										buf,							// src
-										vv.vol[0], vv.vol[1],			// coeff left/right
-										loop1_frame );					// frame count
-	port->unlockFirstBuffer();
-
-	if( frames > m_framesPerPeriod )
-	{
-		port->lockSecondBuffer();
-	
-		const fpp_t framesLeft = qMin<int>( frames - m_framesPerPeriod, m_framesPerPeriod );
-
-		MixHelpers::addMultipliedStereo( port->secondBuffer(),			// dst
-											buf + m_framesPerPeriod,	// src
-											vv.vol[0], vv.vol[1],		// coeff left/right
-											framesLeft );					// frame count
-
-		// we used both buffers so set flags
-		port->m_bufferUsage = AudioPort::BothBuffers;
-		port->unlockSecondBuffer();
-	}
-	else if( port->m_bufferUsage == AudioPort::NoUsage )
-	{
-		// only first buffer touched
-		port->m_bufferUsage = AudioPort::FirstBuffer;
-	}
 }
 
 
@@ -658,7 +623,8 @@ bool Mixer::addPlayHandle( PlayHandle* handle )
 	if( criticalXRuns() == false )
 	{
 		m_playHandleMutex.lock();
-		m_newPlayHandles.append( handle );
+			m_newPlayHandles.append( handle );
+			handle->audioPort()->addPlayHandle( handle );
 		m_playHandleMutex.unlock();
 		return true;
 	}
@@ -681,6 +647,7 @@ void Mixer::removePlayHandle( PlayHandle * _ph )
 				_ph->affinity() == QThread::currentThread() )
 	{
 		lockPlayHandleRemoval();
+		_ph->audioPort()->removePlayHandle( _ph );
 		PlayHandleList::Iterator it =
 				qFind( m_playHandles.begin(),
 						m_playHandles.end(), _ph );
@@ -712,6 +679,7 @@ void Mixer::removePlayHandles( track * _track, bool removeIPHs )
 	{
 		if( ( *it )->isFromTrack( _track ) && ( removeIPHs || ( *it )->type() != PlayHandle::TypeInstrumentPlayHandle ) )
 		{
+			( *it )->audioPort()->removePlayHandle( ( *it ) );
 			if( ( *it )->type() == PlayHandle::TypeNotePlayHandle ) 
 			{
 				NotePlayHandleManager::release( (NotePlayHandle*) *it );

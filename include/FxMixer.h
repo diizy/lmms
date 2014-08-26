@@ -67,7 +67,7 @@ class FxChannel : public ThreadableJob
 		virtual bool requiresProcessing() const { return true; }
 
 	private:
-		virtual void doProcessing( sampleFrame * _working_buffer );
+		virtual void doProcessing();
 };
 
 
