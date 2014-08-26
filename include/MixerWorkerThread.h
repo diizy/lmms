@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _MIXER_WORKER_THREAD_H
-#define _MIXER_WORKER_THREAD_H
+#ifndef MIXER_WORKER_THREAD_H
+#define MIXER_WORKER_THREAD_H
 
 #include <QtCore/QAtomicPointer>
 #include <QtCore/QThread>
@@ -63,7 +63,7 @@ public:
 
 		void addJob( ThreadableJob * _job );
 
-		void run( sampleFrame * _buffer );
+		void run();
 		void wait();
 
 	private:
@@ -115,7 +115,6 @@ private:
 	static QWaitCondition * queueReadyWaitCond;
 	static QList<MixerWorkerThread *> workerThreads;
 
-	sampleFrame * m_workingBuf;
 	volatile bool m_quit;
 
 } ;

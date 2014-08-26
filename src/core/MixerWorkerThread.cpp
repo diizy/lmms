@@ -56,7 +56,7 @@ void MixerWorkerThread::JobQueue::addJob( ThreadableJob * _job )
 
 
 
-void MixerWorkerThread::JobQueue::run( sampleFrame * _buffer )
+void MixerWorkerThread::JobQueue::run()
 {
 	bool processedJob = true;
 	while( processedJob && (int) m_itemsDone < (int) m_queueSize )
@@ -67,7 +67,7 @@ void MixerWorkerThread::JobQueue::run( sampleFrame * _buffer )
 			ThreadableJob * job = m_items[i].fetchAndStoreOrdered( NULL );
 			if( job )
 			{
-				job->process( _buffer );
+				job->process();
 				processedJob = true;
 				m_itemsDone.fetchAndAddOrdered( 1 );
 			}
@@ -98,7 +98,6 @@ void MixerWorkerThread::JobQueue::wait()
 
 MixerWorkerThread::MixerWorkerThread( Mixer* mixer ) :
 	QThread( mixer ),
-	m_workingBuf( new sampleFrame[mixer->framesPerPeriod()] ),
 	m_quit( false )
 {
 	// set denormal protection for this thread
@@ -130,8 +129,6 @@ MixerWorkerThread::MixerWorkerThread( Mixer* mixer ) :
 
 MixerWorkerThread::~MixerWorkerThread()
 {
-	delete[] m_workingBuf;
-
 	workerThreads.removeAll( this );
 }
 
@@ -153,7 +150,7 @@ void MixerWorkerThread::startAndWaitForJobs()
 	// The last worker-thread is never started. Instead it's processed "inline"
 	// i.e. within the global Mixer thread. This way we can reduce latencies
 	// that otherwise would be caused by synchronizing with another thread.
-	globalJobQueue.run( workerThreads.last()->m_workingBuf );
+	globalJobQueue.run();
 	globalJobQueue.wait();
 }
 
@@ -167,7 +164,7 @@ void MixerWorkerThread::run()
 	{
 		m.lock();
 		queueReadyWaitCond->wait( &m );
-		globalJobQueue.run( m_workingBuf );
+		globalJobQueue.run();
 		m.unlock();
 	}
 }
