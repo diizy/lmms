@@ -68,7 +68,6 @@
 #include "DataFile.h"
 #include "song.h"
 #include "LmmsPalette.h"
-#include "BufferManager.h"
 
 static inline QString baseName( const QString & _file )
 {
@@ -424,9 +423,6 @@ int main( int argc, char * * argv )
 		// init central engine which handles all components of LMMS
 		engine::init();
 		
-		// init buffer manager - has to be done after fpp is known
-		BufferManager::init();
-
 		splashScreen.hide();
 
 		// re-intialize RNG - shared libraries might have srand() or
@@ -492,6 +488,7 @@ int main( int argc, char * * argv )
 	{
 		// we're going to render our song
 		engine::init( false );
+
 		printf( "loading project...\n" );
 		engine::getSong()->loadProject( file_to_load );
 		printf( "done\n" );
