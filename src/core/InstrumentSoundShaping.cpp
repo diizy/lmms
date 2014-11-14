@@ -101,6 +101,7 @@ InstrumentSoundShaping::InstrumentSoundShaping(
 	m_filterModel.addItem( tr( "SV Notch" ), new PixmapLoader( "filter_notch" ) );
 	m_filterModel.addItem( tr( "Fast Formant" ), new PixmapLoader( "filter_hp" ) );
 	m_filterModel.addItem( tr( "Tripole" ), new PixmapLoader( "filter_lp" ) );
+	m_filterModel.addItem( tr( "Hex_LP" ), new PixmapLoader( "filter_lp" ) );
 }
 
 

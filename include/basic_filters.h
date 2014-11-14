@@ -77,6 +77,7 @@ public:
 		Notch_SV,
 		FastFormant,
 		Tripole,
+		Hex_LP,
 		NumFilters
 	};
 
@@ -140,6 +141,9 @@ public:
 			m_y1[_chnl] = m_y2[_chnl] = m_y3[_chnl] = m_y4[_chnl] =
 					m_oldx[_chnl] = m_oldy1[_chnl] =
 					m_oldy2[_chnl] = m_oldy3[_chnl] = 0.0f;
+			
+			// hex
+			m_y5[_chnl] = m_y6[_chnl] = 0.0f;
 			
 			// tripole
 			m_last[_chnl] = 0.0f;
@@ -532,6 +536,38 @@ public:
             	return m_type == FastFormant ? out * 2.0f : out * 0.5f;
 				break;
 			}
+			
+			case Hex_LP:
+			{
+				out = 0.0f;
+				// 2x oversample
+				for( int i = 0; i < 2; ++i )
+				{
+					// four onepole lowpasses
+					float lp = _in0 * m_la + m_y1[_chnl] * m_lb;
+					m_y1[_chnl] = lp;
+					
+					lp = lp * m_la + m_y2[_chnl] * m_lb;
+					m_y2[_chnl] = lp;
+					
+					lp = lp * m_la + m_y3[_chnl] * m_lb;
+					m_y3[_chnl] = lp;
+					
+					lp = lp * m_la + m_y4[_chnl] * m_lb;
+					m_y4[_chnl] = lp;
+					
+					// two onepole highpasses
+					float hp = lp * m_ha + m_y5[_chnl] * m_hb;
+					m_y5[_chnl] = hp;
+					
+					hp = hp * m_ha + m_y6[_chnl] * m_hb;
+					m_y6[_chnl] = hp;
+					
+					out += lp + ( hp * m_q );			
+				}
+				return out * 0.5f;
+				break;
+			}
 
 			default:
 				// biquad filter in transposed form
@@ -654,6 +690,20 @@ public:
 			m_svq = qMax( 0.0001f, 2.0f - ( _q * 0.1995f ) );
 			return;
 		}
+		
+		if( m_type == Hex_LP )
+		{
+			const float f = qBound( 20.0f, _freq, 20000.0f ) * m_sampleRatio;
+			
+			m_q = _q * 0.25f;
+			
+			m_lb = expf( -1.0f * F_PI * f );
+			m_la = 1.0f - m_lb;
+			
+			m_hb = -expf( -1.0f * F_PI * ( 0.5f - f * 0.75f ) );
+			m_ha = 1.0f + m_hb;
+			return;
+		}
 
 		// other filters
 		_freq = qBound( minFreq(), _freq, 20000.0f );
@@ -721,6 +771,9 @@ private:
 
 	// coeffs for moog-filter
 	float m_r, m_p, m_k;
+	
+	// coeffs for hex
+	float m_la, m_lb, m_ha, m_hb, m_q;
 
 	// coeffs for RC-type-filters
 	float m_rca, m_rcb, m_rcc, m_rcq;
@@ -740,6 +793,8 @@ private:
 	frame m_y1, m_y2, m_y3, m_y4, m_oldx, m_oldy1, m_oldy2, m_oldy3;
 	// additional one for Tripole filter
 	frame m_last;
+	// additional ones for hex filters
+	frame m_y5, m_y6;
 
 	// in/out history for RC-type-filters
 	frame m_rcbp0, m_rclp0, m_rchp0, m_rclast0;
