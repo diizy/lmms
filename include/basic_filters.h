@@ -543,27 +543,18 @@ public:
 				// 2x oversample
 				for( int i = 0; i < 2; ++i )
 				{
-					// four onepole lowpasses
-					float lp = _in0 * m_la + m_y1[_chnl] * m_lb;
-					m_y1[_chnl] = lp;
+					// 2x onepole lowpasses
+					float r = qBound( -1.0f, m_y6[_chnl] * m_q, 1.0f );
+					m_y1[_chnl] = ( _in0 + r ) * m_la + m_y1[_chnl] * m_lb;
+					m_y2[_chnl] = ( m_y1[_chnl] + r ) * m_la + m_y2[_chnl] * m_lb;
+
+					// 4x onepole highpasses for resonance					
+					m_y3[_chnl] = m_y2[_chnl] * m_ha + m_y3[_chnl] * m_hb;
+					m_y4[_chnl] = m_y3[_chnl] * m_ha + m_y4[_chnl] * m_hb;
+					m_y5[_chnl] = m_y4[_chnl] * m_ha + m_y5[_chnl] * m_hb;
+					m_y6[_chnl] = m_y5[_chnl] * m_ha + m_y6[_chnl] * m_hb;
 					
-					lp = lp * m_la + m_y2[_chnl] * m_lb;
-					m_y2[_chnl] = lp;
-					
-					lp = lp * m_la + m_y3[_chnl] * m_lb;
-					m_y3[_chnl] = lp;
-					
-					lp = lp * m_la + m_y4[_chnl] * m_lb;
-					m_y4[_chnl] = lp;
-					
-					// two onepole highpasses
-					float hp = lp * m_ha + m_y5[_chnl] * m_hb;
-					m_y5[_chnl] = hp;
-					
-					hp = hp * m_ha + m_y6[_chnl] * m_hb;
-					m_y6[_chnl] = hp;
-					
-					out += lp + ( hp * m_q );			
+					out += m_y2[_chnl];
 				}
 				return out * 0.5f;
 				break;
@@ -695,12 +686,12 @@ public:
 		{
 			const float f = qBound( 20.0f, _freq, 20000.0f ) * m_sampleRatio;
 			
-			m_q = _q * 0.25f;
+			m_q = _q * 0.314f;
 			
 			m_lb = expf( -1.0f * F_PI * f );
 			m_la = 1.0f - m_lb;
 			
-			m_hb = -expf( -1.0f * F_PI * ( 0.5f - f * 0.75f ) );
+			m_hb = -expf( -1.0f * F_PI * ( 0.5f - f * 0.995f ) );
 			m_ha = 1.0f + m_hb;
 			return;
 		}
